@@ -11,7 +11,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "eslint": "eslint src/app.ts",
     "lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts",
-    "fix-lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts --fix"
+    "fix-lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts --fix",
+    "postbuild":"./setup.sh after_build"
   },
   "author": "Diogenes Morais",
   "license": "ISC",
@@ -22,6 +23,7 @@
     "googleapis": "^49.0.0",
     "helmet": "^3.22.0",
     "mongoose": "^5.9.10",
+    "multer": "^1.4.2",
     "nodemon": "^2.0.3",
     "ts-node": "^8.9.0"
   },
@@ -29,6 +31,7 @@
     "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.6",
     "@types/mongoose": "^5.7.12",
+    "@types/multer": "^1.4.3",
     "@types/node": "^13.13.4",
     "@typescript-eslint/eslint-plugin": "^2.29.0",
     "@typescript-eslint/parser": "^2.29.0",

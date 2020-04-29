@@ -1,13 +1,13 @@
 import { Router, IRouter } from 'express';
-import testRoutes from './test.route';
+import authGoole from './authGoole.route';
 
-export default class CrawlerRouter {
+export default class GoogleRouter {
     route:IRouter = null
 
     constructor(){
         this.route = Router();
 
-        this.route.use('/test', testRoutes);
+        this.route.use('/', authGoole);
     }
 
     getRoutes(){

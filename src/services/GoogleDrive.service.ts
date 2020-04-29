@@ -5,7 +5,16 @@ import * as util from 'util';
 
 
 const TOKEN_PATH = 'token.json';
-const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
+const SCOPES = [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive.metadata.readonly',
+    'https://www.googleapis.com/auth/drive.appdata',
+    'https://www.googleapis.com/auth/drive.metadata',
+    'https://www.googleapis.com/auth/drive.photos.readonly'
+
+];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
@@ -26,7 +35,7 @@ export default class GoogleDrive {
                 "client_secret": process.env.CLIENTE_SECRET,
                 "redirect_uris": [
                     "urn:ietf:wg:oauth:2.0:oob",
-                    process.env.redirect_uris
+                    process.env.REDIRECT_URIS
                 ]
             }
         }
@@ -45,7 +54,7 @@ export default class GoogleDrive {
     private async getOauth2Client() {
         const { client_secret, client_id, redirect_uris } = this.content.installed;
         const oAuth2Client = new google.auth.OAuth2(
-            client_id, client_secret, 'http://localhost:3000/api/test/callback/');
+            client_id, client_secret, redirect_uris[1]);
         oAuth2Client.setCredentials(this.content);
         return oAuth2Client;
     }
@@ -81,19 +90,40 @@ export default class GoogleDrive {
         return authUrl;
     }
 
-    /**
-     * Lists the names and IDs of up to 10 files.
-     * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
-     */
-    public async listFiles() {
+
+    private async getValidAuth() {
         const auth = await this.getOauth2Client();
         const readPromisify = util.promisify(fs.readFile);
         let token: any = {};
         await readPromisify(TOKEN_PATH, 'utf8').then(data => {
             token = JSON.parse(data);
         });
-        auth.setCredentials(token)
-        const drive = google.drive({ version: 'v3', auth });
+        auth.setCredentials(token);
+        return auth;
+    }
+
+    private async getValidDrive() {
+        const auth = await this.getValidAuth();
+        return google.drive({ version: 'v3', auth });
+    }
+
+    /**
+     * Lists the names and IDs of up to 10 files.
+     * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+     */
+    public async listFiles() {
+        //  const auth = await this.getOauth2Client();
+
+        // const readPromisify = util.promisify(fs.readFile);
+        // let token: any = {};
+        // await readPromisify(TOKEN_PATH, 'utf8').then(data => {
+        //     token = JSON.parse(data);
+        // });
+        // auth.setCredentials(token)
+
+        // const drive = google.drive({ version: 'v3',  auth});
+        const drive = await this.getValidDrive();
+
         drive.files.list({
             pageSize: 10,
             fields: 'nextPageToken, files(id, name)',
@@ -110,4 +140,24 @@ export default class GoogleDrive {
             }
         });
     }
+
+    public async createFolder() {
+        const drive = await this.getValidDrive();
+        let fileMetadata = {
+            'name': 'Invoices',
+            'mimeType': 'application/vnd.google-apps.folder'
+        };
+        drive.files.create({
+            requestBody: fileMetadata,
+            fields: 'id'
+        }, function (err :any, file :any) {
+            if (err) {
+                // Handle error
+                console.error(err);
+            } else {
+                console.log('Folder Id: ', file.id);
+            }
+        });
+    }
+    
 }
