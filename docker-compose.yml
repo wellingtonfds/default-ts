@@ -1,0 +1,14 @@
+version: "3.6"
+
+services:
+  visualy-crawler:
+    build:
+      context: .
+    container_name: visualy-crawler
+    networks:
+      - visually-network
+    ports:
+      - '3000:3000'
+
+networks:
+  visually-network:
