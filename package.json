@@ -12,7 +12,7 @@
     "eslint": "eslint src/app.ts",
     "lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts",
     "fix-lint": "./node_modules/eslint/bin/eslint.js  src --ext .ts --fix",
-    "postbuild":"./setup.sh after_build"
+    "postbuild": "./setup.sh after_build"
   },
   "author": "Diogenes Morais",
   "license": "ISC",

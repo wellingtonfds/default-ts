@@ -8,7 +8,7 @@ const authGoole: express.IRouter = Router();
 authGoole.route('/login')
     .get(async (req, res) => {
         let googleService = new GoogleDrive();
-        const authUrl = await googleService.init();
+        const authUrl = await googleService.authorize();
         res.redirect(authUrl);
     })
 
@@ -29,24 +29,32 @@ authGoole.route('/callback')
 authGoole.route('/create')
     .get(async (req, res) => {
         let googleService = new GoogleDrive();
-        await googleService.createFolder();
+        //await googleService.createFolder();
         res.send("created");
 
     })
 authGoole
-    .post('/images',upload.single('file') , async (req: any, res) => {
-        
-        try {
-            res.send(200).json({msg:"File added with success", file:{name:req.file.filename}});
-        } catch (error) {
-            console.log(error);
-            res.send(200).json({msg:error});
-        }
-        //console.log('path',path);
-        
-        
-        
+    .post('/images', upload.single('file'), async (req: any, res) => {
+
+        // try {
+            const googleService = new GoogleDrive();
+            const file = await googleService.uploadFile(req.file, req.app.get('ROOT_PATH') );
+            
+            res.send(file);
+        // } catch (error) {
+        //     console.log(error);
+        //     res.sendStatus(200).json({ msg: error });
+        // }
     });
+authGoole.get('/init', async (req:any, res)=>{
+    const googleService = new GoogleDrive();
+    res.send(await googleService.init(req.app.get('ROOT_PATH')));
+    // const files :any = await googleService.searchFolder('invoices');
+    // res.send(files);
+    // await googleService.createFolder();
+
+});
+
 
 
 

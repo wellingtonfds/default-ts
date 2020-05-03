@@ -10,6 +10,10 @@ const app: express.Application = express();
 
 const routes = new GoogleRouter().getRoutes();
 
+
+declare let PATHROOT : string;
+
+
 app.use('/', routes);
 app.set('ROOT_PATH', __dirname);
 

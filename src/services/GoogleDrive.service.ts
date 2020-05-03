@@ -1,10 +1,13 @@
 import { google } from 'googleapis';
 import * as fs from 'fs';
 import * as util from 'util';
+import QueryModel from '../models/Query.model';
+
 
 
 
 const TOKEN_PATH = 'token.json';
+const CONFIG_FILES = 'files.json'
 const SCOPES = [
     'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/drive.file',
@@ -15,15 +18,15 @@ const SCOPES = [
     'https://www.googleapis.com/auth/drive.photos.readonly'
 
 ];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
-
+const readPromisify = util.promisify(fs.readFile);
+const writePromisify = util.promisify(fs.writeFile);
+const unlinkPromisify = util.promisify(fs.unlink);
 
 
 export default class GoogleDrive {
 
     private content: any;
+
     constructor() {
         this.content = {
             "installed": {
@@ -41,8 +44,35 @@ export default class GoogleDrive {
         }
     }
 
-    async init() {
-        return await this.authorize(this.content);
+    async init(rootPath: any) {
+        let query: QueryModel = new QueryModel();
+        query.name = "crawler";
+        const files: any = await this.searchFolder(query);
+
+        let config: any = await this.getConfigFile(rootPath);
+        //Main folder init
+        if (!config.main.id) {
+            //create a folder crawler
+            if (!files.legth) {
+                config.main.id = await this.createFolder('crawler')
+            } else {
+                config.main.id = files[0].id
+            }
+            config.main.name = 'crawler'
+        }
+
+        //create a folter to images
+        if (!config.current_position.id) {
+            config.current_position.name = `${config.folder_prefix}_${config.folder_number}`;
+            config.current_position.id = await this.createFolder(
+                config.current_position.name,
+                config.main.id
+            );
+            config.folder_number++;
+        }
+
+        //write config
+        await writePromisify(`${rootPath}/storage/${CONFIG_FILES}`, JSON.stringify(config))
     }
     /**
      * Create an OAuth2 client with the given credentials, and then execute the
@@ -58,7 +88,7 @@ export default class GoogleDrive {
         oAuth2Client.setCredentials(this.content);
         return oAuth2Client;
     }
-    public async authorize(credentials: any) {
+    public async authorize(credentials: any = this.content) {
         const oAuth2Client = await this.getOauth2Client();
         oAuth2Client.setCredentials(this.content);
         return await this.getAccessToken(oAuth2Client);
@@ -90,10 +120,17 @@ export default class GoogleDrive {
         return authUrl;
     }
 
-
+    private async getConfigFile(rootPath: string) {
+        const pathFileConfig: string = `${rootPath}/storage/${CONFIG_FILES}`;
+        let config: any = {};
+        await readPromisify(pathFileConfig, 'utf8').then(data => {
+            config = JSON.parse(data);
+        });
+        return config;
+    }
     private async getValidAuth() {
         const auth = await this.getOauth2Client();
-        const readPromisify = util.promisify(fs.readFile);
+
         let token: any = {};
         await readPromisify(TOKEN_PATH, 'utf8').then(data => {
             token = JSON.parse(data);
@@ -112,18 +149,7 @@ export default class GoogleDrive {
      * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
      */
     public async listFiles() {
-        //  const auth = await this.getOauth2Client();
-
-        // const readPromisify = util.promisify(fs.readFile);
-        // let token: any = {};
-        // await readPromisify(TOKEN_PATH, 'utf8').then(data => {
-        //     token = JSON.parse(data);
-        // });
-        // auth.setCredentials(token)
-
-        // const drive = google.drive({ version: 'v3',  auth});
         const drive = await this.getValidDrive();
-
         drive.files.list({
             pageSize: 10,
             fields: 'nextPageToken, files(id, name)',
@@ -141,23 +167,123 @@ export default class GoogleDrive {
         });
     }
 
-    public async createFolder() {
+
+    private async getCurrentFolderUpload(rootPath: any) {
+        const config = await this.getConfigFile(rootPath);
+        let query: QueryModel = new QueryModel();
+        query.name = config.current_position.name;
+        query.getParents = true;
+        const folder: any = await this.searchFolder(query);
+        // return config.main.id;
+        if (folder[0].children.length < config.qty) {
+            return folder[0].id;
+        }
+
+        return await this.improveFolderUpload(rootPath);
+
+    }
+
+    private async improveFolderUpload(rootPath: any) {
+        const config = await this.getConfigFile(rootPath);
+        //create a history
+        config.last_position.id = config.current_position.id
+        config.last_position.name = config.current_position.name
+
+
+        //create a new folder
+        config.current_position.name = `${config.folder_prefix}_${config.folder_number}`;
+        config.current_position.id = await this.createFolder(
+            config.current_position.name,
+            config.main.id
+        );
+        config.folder_number++;
+        //write config
+        await writePromisify(`${rootPath}/storage/${CONFIG_FILES}`, JSON.stringify(config))
+        return config.current_position.id;
+    }
+    public async uploadFile(file: any, rootPath: any) {
         const drive = await this.getValidDrive();
+        const idCurrentFolder = await this.getCurrentFolderUpload(rootPath);
+
         let fileMetadata = {
-            'name': 'Invoices',
+            name: file.filename,
+            parents: [`${idCurrentFolder}`],
+
+        };
+        const media = {
+            mimeType: file.mimetype,
+            body: fs.createReadStream(file.path)
+        };
+
+        let fileGoogle: any = {};
+        await drive.files.create({
+            requestBody: fileMetadata,
+            media: media,
+            fields: 'id'
+        }).then(res => {
+            //delete file
+            unlinkPromisify(file.path)
+            fileGoogle = res.data
+        })
+            .catch(err => console.log(err))
+        return fileGoogle
+    }
+
+    public async searchFolder(query: any) {
+        //Make Query
+        let queryDrive: String = "trashed=false";
+        for (const key in query) {
+            const and = queryDrive != "" ? " and " : ""
+            if (query[key] && key != 'getParents' && key != 'raw') {
+                let value = query[key];
+                if (key == 'trashed') {
+                    value = query[key] ? 'true' : 'false'
+                }
+                queryDrive += `${and}${key} = '${value}'`
+            } else if (key == 'raw') {
+                queryDrive += `${and} ${query[key]}`
+            }
+
+
+        }
+
+        const drive = await this.getValidDrive();
+        let files: any = [];
+        await drive.files.list({
+            q: `${queryDrive}`,
+            fields: 'nextPageToken, files(*)',
+            spaces: 'drive',
+            pageToken: null
+        }).then(res => { files = res.data.files })
+            .catch(err => { files = err });
+        //add children files on father folder
+        if (query.getParents) {
+            let children: any = {}
+            if (files[0].mimeType = 'application/vnd.google-apps.folder') {
+                const idFolder = files[0].id
+                children = await this.searchFolder({ raw: `'${idFolder}' in parents` })
+            }
+            files[0].children = children;
+        }
+        return files;
+    }
+    public async createFolder(name: string, parent: string = null) {
+        const drive = await this.getValidDrive();
+        let newfolder: any = {};
+        let fileMetadata: any = {
+            'name': name,
             'mimeType': 'application/vnd.google-apps.folder'
         };
-        drive.files.create({
+        if (parent) {
+            fileMetadata.parents = [`${parent}`];
+        }
+        await drive.files.create({
             requestBody: fileMetadata,
             fields: 'id'
-        }, function (err :any, file :any) {
-            if (err) {
-                // Handle error
-                console.error(err);
-            } else {
-                console.log('Folder Id: ', file.id);
-            }
-        });
+        }).then(folder => {
+            newfolder = folder.data.id;
+        }).catch(err => console.log(err))
+        return newfolder;
     }
-    
+
 }
