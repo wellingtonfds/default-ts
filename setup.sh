@@ -16,7 +16,7 @@ before_build() {
 
 after_build() {
    $path  bash -c "pwd" 
-   bash -c "cd dist && mkdir -p storage/uploads"
+   bash -c "cd dist && mkdir -p storage/uploads && mkdir -p storage/temp"
 
    cp src/storage/files.json dist/storage/
 }

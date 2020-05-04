@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import * as fs from 'fs';
 import * as util from 'util';
 import QueryModel from '../models/Query.model';
+import { Readable } from 'stream';
 
 
 
@@ -182,7 +183,42 @@ export default class GoogleDrive {
         return await this.improveFolderUpload(rootPath);
 
     }
+    public async imagesChecked(rootPath: any) {
+        let query: QueryModel = new QueryModel();
+        query.raw = "fullText contains 'ok'";
+        const folders: any = await this.searchFolder(query);
+        folders.forEach(async (folder: any) => {
+            query.raw = `'${folder.id}' in parents`
+            query.mimeType = '';
+            const files = await this.searchFolder(query);
+            files.forEach(async (file: any) => {
+                await this.downloadImage(rootPath, file)
+            });
+            this.deleteFile(folder)
+        });
+        return folders;
 
+    }
+    private async downloadImage(rootPath: any, file: any) {
+        const drive = await this.getValidDrive();
+        const dest = fs.createWriteStream(`${rootPath}/storage/temp/${file.name}`);
+        const res = await drive.files.get({
+            fileId: file.id,
+            alt: 'media',
+        }, {
+            responseType: 'stream'
+        });
+        const streamy = res.data as Readable;
+        streamy.pipe(dest);
+    }
+    private async deleteFile(file:any){
+        const drive = await this.getValidDrive();
+        drive.files.delete({
+            fileId:file.id
+        })
+        .catch(err=>console.log(err))
+
+    }
     private async improveFolderUpload(rootPath: any) {
         const config = await this.getConfigFile(rootPath);
         //create a history

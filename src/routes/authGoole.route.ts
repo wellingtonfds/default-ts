@@ -1,7 +1,8 @@
 import express, { Router } from 'express';
 import GoogleDrive from '../services/GoogleDrive.service';
 import upload from '../middlewares/upload.middleware';
-import path from 'path';
+import { runInNewContext } from 'vm';
+
 
 const authGoole: express.IRouter = Router();
 
@@ -26,33 +27,32 @@ authGoole.route('/callback')
         res.status(200).json(req.query)
     })
 
-authGoole.route('/create')
+authGoole.route('/images/checked')
     .get(async (req, res) => {
         let googleService = new GoogleDrive();
-        //await googleService.createFolder();
-        res.send("created");
+        const folders: any = {
+            description: 'Folders checked',
+            folders: await googleService.imagesChecked(req.app.get('ROOT_PATH'))
+        }
+        folders.folders = folders.folders.map((folder: any) => {
+            return {
+                'name': folder.name,
+                'created':folder.createdTime,
+                'modified':folder.modifiedTime
+            }
+        });
+        res.send(folders);
 
     })
 authGoole
     .post('/images', upload.single('file'), async (req: any, res) => {
-
-        // try {
-            const googleService = new GoogleDrive();
-            const file = await googleService.uploadFile(req.file, req.app.get('ROOT_PATH') );
-            
-            res.send(file);
-        // } catch (error) {
-        //     console.log(error);
-        //     res.sendStatus(200).json({ msg: error });
-        // }
+        const googleService = new GoogleDrive();
+        const file = await googleService.uploadFile(req.file, req.app.get('ROOT_PATH'));
+        res.send(file);
     });
-authGoole.get('/init', async (req:any, res)=>{
+authGoole.get('/init', async (req: any, res) => {
     const googleService = new GoogleDrive();
     res.send(await googleService.init(req.app.get('ROOT_PATH')));
-    // const files :any = await googleService.searchFolder('invoices');
-    // res.send(files);
-    // await googleService.createFolder();
-
 });
 
 

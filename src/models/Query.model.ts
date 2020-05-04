@@ -1,4 +1,5 @@
 export default class QueryModel {
+    public id: string
     public idParent: string
     public name: string
     public mimeType: string
