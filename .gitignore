@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+node_modules/
+build/
+tmp/
+temp/
+.env
+token.json
+ormconfig.json
+dist/
+package-lock.json
+
+# Optional npm cache directory
+.npm

@@ -1,0 +1,17 @@
+{   
+    "folder_prefix":"images",
+    "folder_number":0,
+    "qty":500,
+    "main":{
+        "name":"",
+        "id":""
+    },
+    "last_position":{
+        "name":"",
+        "id":""
+    },
+    "current_position":{
+        "name":"",
+        "id":""
+    }
+}
