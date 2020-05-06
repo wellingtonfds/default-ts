@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { CrawlerImages } from './CrawlerImages';
 
 @Entity()
@@ -11,14 +11,20 @@ export class CrawlerKeyWords {
     keyword:string;
 
     @Column()
+    category:string;
+
+    @Column({default: 0})
     crawled_total:number
 
-    @CreateDateColumn()
+    @CreateDateColumn({default: null})
     created_at :Date
 
-    @Column()
+    @UpdateDateColumn({default: null})
+    updated_at :Date
+
+    @Column({default: null})
     ended_at :Date
 
     @OneToMany(type => CrawlerImages, (crawlerImages: any) => crawlerImages.images)
-    category: CrawlerImages[];
+    keywordImages: CrawlerImages[];
 }
