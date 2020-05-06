@@ -87,25 +87,29 @@ authGoole.get('/crawler/images', async (req: any, res) => {
 
 
     const crawlerService: CrawlerService = new CrawlerService();
-    const listImages = await crawlerService.listImages(keyWords[0].keyword);
+    await crawlerService.addKeywords(keyWords[0].keyword)
+    const listImages:any = await crawlerService.listImages(keyWords[0].keyword);
 
-    listImages.forEach(async (image: any) => {
+
+    for(const keyImage in listImages){
+    // listImages.forEach(async (image: any) => {
 
         //get image
         const response = await axios({
             method: 'get',
-            url: image.source,
+            url: listImages[keyImage].source,
             responseType: 'stream'
         })
 
         //find category 
         const category: any = await crawlerKeyWordsRepository
             .createQueryBuilder()
-            .where('keyword like :keyword', { keyword: `%${image.keyword_term}%` })
+            .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
             .getOne();
 
         const crawlerImages: CrawlerImages = new CrawlerImages();
         crawlerImages.crawler_keyword = category;
+        crawlerImages.description = listImages[keyImage].description;
 
         const imageRepository: any = getRepository(CrawlerImages);
         const newImage = await imageRepository.save(crawlerImages);
@@ -119,32 +123,50 @@ authGoole.get('/crawler/images', async (req: any, res) => {
         }
         const dest = fs.createWriteStream(file.path);
         const streamy = response.data as Readable;
-        streamy.pipe(dest)
-            .on('finish', async () => {
-
-                //store image on google drive
-                const googleService = new GoogleDrive();
-                const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
 
 
-                //fill data
+        const promiseStreamy = new Promise((resolve:any, reject:any) => {
+            streamy.pipe(dest)
+            .on('finish',resolve())
+            .on('error', reject())
+        });
 
-                newImage.source_url = fileGoogle.webContentLink;
-                newImage.original_filename = file.name;
-                newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
+        await promiseStreamy.then(async ()=>{
+             //store image on google drive
+             const googleService = new GoogleDrive();
+             const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
 
-                //updated a new image
-                imageRepository.save(crawlerImages);
-            });
+             //fill data
+             newImage.source_url = fileGoogle.webContentLink;
+             newImage.original_filename = file.name;
+             newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
 
-    })
+             //updated a new image
+             await imageRepository.save(crawlerImages);
+        }).catch(err => console.log(err))
+        // streamy.pipe(dest)
+        //     .on('finish', async () => {
+
+        //         //store image on google drive
+        //         const googleService = new GoogleDrive();
+        //         const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
+
+
+        //         //fill data
+
+        //         newImage.source_url = fileGoogle.webContentLink;
+        //         newImage.original_filename = file.name;
+        //         newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
+
+        //         //updated a new image
+        //         await imageRepository.save(crawlerImages);
+        //     });
+
+    }
 
     keyWords[0].crawled_total++;
     crawlerKeyWordsRepository.save(keyWords[0]);
-
-    res.send({
-        'msg': 'Your request will be processed'
-    });
+    res.send(listImages)
 })
 
 

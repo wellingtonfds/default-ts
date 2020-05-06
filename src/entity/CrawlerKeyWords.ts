@@ -10,6 +10,9 @@ export class CrawlerKeyWords {
     @Column()
     keyword:string;
 
+    @Column()
+    category:string;
+
     @Column({default: 0})
     crawled_total:number
 
@@ -23,5 +26,5 @@ export class CrawlerKeyWords {
     ended_at :Date
 
     @OneToMany(type => CrawlerImages, (crawlerImages: any) => crawlerImages.images)
-    category: CrawlerImages[];
+    keywordImages: CrawlerImages[];
 }

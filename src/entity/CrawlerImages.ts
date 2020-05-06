@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne , CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne , CreateDateColumn, DeleteDateColumn } from "typeorm";
 import { CrawlerKeyWords } from './CrawlerKeyWords';
 
 
@@ -7,6 +7,9 @@ import { CrawlerKeyWords } from './CrawlerKeyWords';
 export class CrawlerImages {
     @PrimaryGeneratedColumn()
     id: number;
+
+    @Column()
+    description:string
 
     @ManyToOne(type => CrawlerKeyWords, (crawlerKeyWords:any)=>crawlerKeyWords.images)
     crawler_keyword: CrawlerKeyWords;
@@ -34,6 +37,9 @@ export class CrawlerImages {
 
     @Column({default: null})
     uploaded_at:Date;
+
+    @DeleteDateColumn()
+    public deleted_at: Date
 
     @Column({default: null})
     transcribed_at:Date;
