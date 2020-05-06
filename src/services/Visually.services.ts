@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { getRepository } from 'typeorm';
+import { CrawlerImages } from '../entity/CrawlerImages';
 
 export default class VisuallyService {
 
@@ -6,14 +8,8 @@ export default class VisuallyService {
         axios(
             {
                 method: 'post',
-                url: `${process.env.VISUALLY_API}`,
-                data: {
-                    "title": "teste thadeu",
-                    "category": "Animals",
-                    "source_url": "https://s2.glbimg.com/awo0fl0f3EL8UnWLjNfSsfVY3aQ=/0x0:2048x1365/1000x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_59edd422c0c84a879bd37670ae4f538a/internal_photos/bs/2020/N/6/tIXvb8RfmiYIeW3xdsAg/posse-pf.jpg",
-                    "email": "accounts+visually@visual.ly",
-                    "api_token": `${process.env.VISUALLY_TOKEN}`
-                },
+                url: `${process.env.VISUALLY_API}/image-upload-api/images/upload/image`,
+                data: file,
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -21,6 +17,43 @@ export default class VisuallyService {
         ).then(res => {
             console.log(res);
         }).catch(err => console.log(err));
+    }
+
+    public async completeData() {
+
+        const imageRepository: any = getRepository(CrawlerImages);
+        const images = await imageRepository
+            .createQueryBuilder()
+            .select('id')
+            .where('uploaded_at is null or transcribed_at is null or published_at is null')
+            .getRawMany();
+        const imagesTrait = await images.map((image: any) => {
+            return image.id
+        })
+        await axios(
+            {
+                method: 'post',
+                url: `${process.env.VISUALLY_API}/image-upload-api/images/list/all`,
+                data: {
+                    nids: imagesTrait,
+                    "api_token": `${process.env.VISUALLY_TOKEN}`
+
+                },
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        ).then(res => {
+            res.data.forEach((image:any) => {
+                const imageDatabase = imageRepository.find(image.nid);
+
+                if(imageDatabase){
+                    imageDatabase.transcribed_at = image.transcribed == '1' ? new Date() : null;
+                    imageRepository.save(imageDatabase);
+                }
+            });
+        }).catch(err => console.log(err));
+
     }
 
 }

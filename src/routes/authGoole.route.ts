@@ -9,6 +9,7 @@ import axios from 'axios'
 import * as fs from 'fs';
 import { Readable } from 'typeorm/platform/PlatformTools';
 import mime from 'mime-types';
+import VisuallyService from '../services/Visually.services';
 const authGoole: IRouter = Router();
 
 authGoole.route('/login')
@@ -21,8 +22,8 @@ authGoole.route('/login')
 
 authGoole.route('/list')
     .get(async (req, res) => {
-        // let googleService = new GoogleDrive();
-        // await googleService.renameFolder('1x5bjHVRnpBeYNQXBA2XkuCY_tS_bnxUo', 'images_17_uploaded');
+        const visuallyService = new VisuallyService();
+        res.send(await visuallyService.completeData())
 
     })
 authGoole.get('/init', async (req: any, res) => {
@@ -44,13 +45,13 @@ authGoole.route('/images/checked')
             description: 'Folders checked',
             folders: await googleService.imagesChecked(req.app.get('ROOT_PATH'))
         }
-        folders.folders = folders.folders.map((folder: any) => {
-            return {
-                'name': folder.name,
-                'created': folder.createdTime,
-                'modified': folder.modifiedTime
-            }
-        });
+        // folders.folders = folders.folders.map((folder: any) => {
+        //     return {
+        //         'name': folder.name,
+        //         'created': folder.createdTime,
+        //         'modified': folder.modifiedTime
+        //     }
+        // });
         res.send(folders);
 
     })
@@ -68,7 +69,8 @@ authGoole
         crawlerImages.source_url = file.webContentLink;
         crawlerImages.original_filename = req.file.originalname;
         crawlerImages.location = file.parents.length ? file.parents[0] : "";
-
+        crawlerImages.published_at = new Date();
+        crawlerImages.uploaded_at = new Date();
         imageRepository.save(crawlerImages);
 
         res.send(file);
@@ -90,16 +92,18 @@ authGoole.get('/crawler/images', async (req: any, res) => {
     await crawlerService.addKeywords(keyWords[0].keyword)
     const listImages:any = await crawlerService.listImages(keyWords[0].keyword);
 
+    
 
     for(const keyImage in listImages){
-    // listImages.forEach(async (image: any) => {
-
+    
         //get image
         const response = await axios({
             method: 'get',
             url: listImages[keyImage].source,
             responseType: 'stream'
         })
+        
+        
 
         //find category 
         const category: any = await crawlerKeyWordsRepository
@@ -110,11 +114,13 @@ authGoole.get('/crawler/images', async (req: any, res) => {
         const crawlerImages: CrawlerImages = new CrawlerImages();
         crawlerImages.crawler_keyword = category;
         crawlerImages.description = listImages[keyImage].description;
+        crawlerImages.source = listImages[keyImage].source
 
         const imageRepository: any = getRepository(CrawlerImages);
         const newImage = await imageRepository.save(crawlerImages);
 
-        const mimeTypeFile = response.data.headers['content-type'];
+        const headerType = response.data.headers['content-type'];
+        const mimeTypeFile =  headerType == undefined ? 'image/png' : headerType;
         const ext = mime.extension(mimeTypeFile);
         const file = {
             path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${ext}`,
@@ -144,23 +150,7 @@ authGoole.get('/crawler/images', async (req: any, res) => {
              //updated a new image
              await imageRepository.save(crawlerImages);
         }).catch(err => console.log(err))
-        // streamy.pipe(dest)
-        //     .on('finish', async () => {
-
-        //         //store image on google drive
-        //         const googleService = new GoogleDrive();
-        //         const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
-
-
-        //         //fill data
-
-        //         newImage.source_url = fileGoogle.webContentLink;
-        //         newImage.original_filename = file.name;
-        //         newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
-
-        //         //updated a new image
-        //         await imageRepository.save(crawlerImages);
-        //     });
+        
 
     }
 

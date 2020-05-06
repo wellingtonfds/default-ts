@@ -8,7 +8,7 @@ export class CrawlerImages {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({default:false, type:'text'})
     description:string
 
     @ManyToOne(type => CrawlerKeyWords, (crawlerKeyWords:any)=>crawlerKeyWords.images)
@@ -16,6 +16,9 @@ export class CrawlerImages {
 
     @Column({default:false})
     source_url: string;
+    
+    @Column({default:false, type:'text'})
+    source: string;
 
     @Column({default: null})
     original_filename:string;

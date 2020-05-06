@@ -10,9 +10,6 @@ export default class CrawlerService {
             'Content-Type': 'application/json'
         }
     }
-
-
-
     public async addKeywords(keyword: string, limit:number = 50) {
 
         axios({
@@ -30,9 +27,6 @@ export default class CrawlerService {
         })
         .catch(err=>console.log(err))
     }
-
-
-
 
     public async listImages(keyword: string, limit:number = 20) {
         let list: [] = [];

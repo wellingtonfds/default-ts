@@ -6,6 +6,7 @@ import { Readable } from 'stream';
 import { CrawlerImages } from '../entity/CrawlerImages';
 import { getRepository } from 'typeorm';
 import VisuallyService from './Visually.services';
+import { CrawlerKeyWords } from '../entity/CrawlerKeyWords';
 
 
 
@@ -187,36 +188,48 @@ export default class GoogleDrive {
 
     }
     public async imagesChecked(rootPath: any) {
+        const visuallyService: VisuallyService  = new VisuallyService();
         let query: QueryModel = new QueryModel();
         query.raw = "fullText contains 'ok'";
         const folders: any = await this.searchFolder(query);
-        folders.forEach(async (folder: any) => {
-            query.raw = `'${folder.id}' in parents`
+        for(const folder in folders){
+        // folders.forEach(async (folder: any) => {
+            query.raw = `'${folders[folder].id}' in parents`
             query.mimeType = '';
             const files = await this.searchFolder(query);
             files.forEach(async (file: any) => {
-
+                const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
                 const imageRepository: any = getRepository(CrawlerImages);
-                const visuallyService: VisuallyService  = new VisuallyService();
+                
                 
                 //find category 
-                const image: any = await imageRepository
+                const {crawlerKeywordId, id_image } : any = await imageRepository
                 .createQueryBuilder()
+                .select('crawlerKeywordId')
+                .addSelect('id as id_image')
                 .where('original_filename = :filename',{filename: `${file.name}`})
-                .with(['crawler_keyword'])
-                .getOne();
-                console.log(image);
+                .getRawOne();
+
+                const image = await imageRepository.find(id_image)
+                const category: any = await crawlerKeyWordsRepository.find(crawlerKeywordId);
+
+                
+                
                 visuallyService.send({
-                    "title": "",
-                    "category": "Animals",
-                    "source_url": "https://s2.glbimg.com/awo0fl0f3EL8UnWLjNfSsfVY3aQ=/0x0:2048x1365/1000x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_59edd422c0c84a879bd37670ae4f538a/internal_photos/bs/2020/N/6/tIXvb8RfmiYIeW3xdsAg/posse-pf.jpg",
+                    "title": image.description,
+                    "source":image.source,
+                    "category": category.category,
+                    "url": image.source_url,
                     "email": "accounts+visually@visual.ly",
                     "api_token": `${process.env.VISUALLY_TOKEN}`
                 })
-                //await this.downloadImage(rootPath, file)
+                
             });
-            //this.deleteFile(folder)
-        });
+            const folerName = folders[folder].name.replace('_ok','') + '_uploaded';
+            this.renameFolder(folders[folder].id, folerName )
+            
+        };
+        visuallyService.completeData();
         return folders;
 
     }
@@ -315,8 +328,9 @@ export default class GoogleDrive {
         }).then(res => { files = res.data.files })
             .catch(err => { files = err });
         //add children files on father folder
-        if (query.getParents) {
+        if (query.getParents && files.length)  {
             let children: any = {}
+            
             if (files[0].mimeType = 'application/vnd.google-apps.folder') {
                 const idFolder = files[0].id
                 children = await this.searchFolder({ raw: `'${idFolder}' in parents` })
