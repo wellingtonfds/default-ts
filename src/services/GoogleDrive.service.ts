@@ -3,6 +3,9 @@ import * as fs from 'fs';
 import * as util from 'util';
 import QueryModel from '../models/Query.model';
 import { Readable } from 'stream';
+import { CrawlerImages } from '../entity/CrawlerImages';
+import { getRepository } from 'typeorm';
+import VisuallyService from './Visually.services';
 
 
 
@@ -192,9 +195,27 @@ export default class GoogleDrive {
             query.mimeType = '';
             const files = await this.searchFolder(query);
             files.forEach(async (file: any) => {
-                await this.downloadImage(rootPath, file)
+
+                const imageRepository: any = getRepository(CrawlerImages);
+                const visuallyService: VisuallyService  = new VisuallyService();
+                
+                //find category 
+                const image: any = await imageRepository
+                .createQueryBuilder()
+                .where('original_filename = :filename',{filename: `${file.name}`})
+                .with(['crawler_keyword'])
+                .getOne();
+                console.log(image);
+                visuallyService.send({
+                    "title": "",
+                    "category": "Animals",
+                    "source_url": "https://s2.glbimg.com/awo0fl0f3EL8UnWLjNfSsfVY3aQ=/0x0:2048x1365/1000x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_59edd422c0c84a879bd37670ae4f538a/internal_photos/bs/2020/N/6/tIXvb8RfmiYIeW3xdsAg/posse-pf.jpg",
+                    "email": "accounts+visually@visual.ly",
+                    "api_token": `${process.env.VISUALLY_TOKEN}`
+                })
+                //await this.downloadImage(rootPath, file)
             });
-            this.deleteFile(folder)
+            //this.deleteFile(folder)
         });
         return folders;
 
@@ -242,12 +263,13 @@ export default class GoogleDrive {
         const idCurrentFolder = await this.getCurrentFolderUpload(rootPath);
 
         let fileMetadata = {
-            name: file.filename,
+            name: file.name,
             parents: [`${idCurrentFolder}`],
 
         };
+
         const media = {
-            mimeType: file.mimetype,
+            mimeType: file.mimeType,
             body: fs.createReadStream(file.path)
         };
 
@@ -255,7 +277,7 @@ export default class GoogleDrive {
         await drive.files.create({
             requestBody: fileMetadata,
             media: media,
-            fields: 'id'
+            fields: '*'
         }).then(res => {
             //delete file
             unlinkPromisify(file.path)
@@ -303,7 +325,19 @@ export default class GoogleDrive {
         }
         return files;
     }
-    public async createFolder(name: string, parent: string = null) {
+    private async renameFolder(idFolder:string, name:string) {
+        const drive = await this.getValidDrive();
+        await drive.files.update({
+            fileId:idFolder,
+            requestBody: {
+                name,
+            }
+        }).then(folder => {
+            console.log(folder)
+        }).catch(err => console.log(err))
+    }
+
+    private async createFolder(name: string, parent: string = null) {
         const drive = await this.getValidDrive();
         let newfolder: any = {};
         let fileMetadata: any = {
