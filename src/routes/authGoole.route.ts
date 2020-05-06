@@ -25,11 +25,16 @@ authGoole.route('/list')
         // await googleService.renameFolder('1x5bjHVRnpBeYNQXBA2XkuCY_tS_bnxUo', 'images_17_uploaded');
 
     })
+authGoole.get('/init', async (req: any, res) => {
+    const googleService = new GoogleDrive();
+    await googleService.init(req.app.get('ROOT_PATH'));
+    res.send('Your application has been actived')
+});
 authGoole.route('/callback')
     .get(async (req, res) => {
         let googleService = new GoogleDrive();
         await googleService.storeToken(req.query);
-        res.status(200).json(req.query)
+        res.redirect('/init');
     })
 
 authGoole.route('/images/checked')
@@ -68,10 +73,7 @@ authGoole
 
         res.send(file);
     });
-authGoole.get('/init', async (req: any, res) => {
-    const googleService = new GoogleDrive();
-    res.send(await googleService.init(req.app.get('ROOT_PATH')));
-});
+
 
 authGoole.get('/crawler/images', async (req: any, res) => {
 
@@ -98,16 +100,16 @@ authGoole.get('/crawler/images', async (req: any, res) => {
 
         //find category 
         const category: any = await crawlerKeyWordsRepository
-        .createQueryBuilder()
-        .where('keyword like :keyword', { keyword: `%${image.keyword_term}%` })
-        .getOne();
+            .createQueryBuilder()
+            .where('keyword like :keyword', { keyword: `%${image.keyword_term}%` })
+            .getOne();
 
         const crawlerImages: CrawlerImages = new CrawlerImages();
         crawlerImages.crawler_keyword = category;
 
         const imageRepository: any = getRepository(CrawlerImages);
         const newImage = await imageRepository.save(crawlerImages);
-        
+
         const mimeTypeFile = response.data.headers['content-type'];
         const ext = mime.extension(mimeTypeFile);
         const file = {
@@ -123,10 +125,10 @@ authGoole.get('/crawler/images', async (req: any, res) => {
                 //store image on google drive
                 const googleService = new GoogleDrive();
                 const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
-                
+
 
                 //fill data
-                
+
                 newImage.source_url = fileGoogle.webContentLink;
                 newImage.original_filename = file.name;
                 newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
@@ -141,7 +143,7 @@ authGoole.get('/crawler/images', async (req: any, res) => {
     crawlerKeyWordsRepository.save(keyWords[0]);
 
     res.send({
-        'msg':'Your request will be processed'
+        'msg': 'Your request will be processed'
     });
 })
 
