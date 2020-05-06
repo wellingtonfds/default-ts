@@ -96,11 +96,23 @@ authGoole.get('/crawler/images', async (req: any, res) => {
             responseType: 'stream'
         })
 
+        //find category 
+        const category: any = await crawlerKeyWordsRepository
+        .createQueryBuilder()
+        .where('keyword like :keyword', { keyword: `%${image.keyword_term}%` })
+        .getOne();
+
+        const crawlerImages: CrawlerImages = new CrawlerImages();
+        crawlerImages.crawler_keyword = category;
+
+        const imageRepository: any = getRepository(CrawlerImages);
+        const newImage = await imageRepository.save(crawlerImages);
+        
         const mimeTypeFile = response.data.headers['content-type'];
         const ext = mime.extension(mimeTypeFile);
         const file = {
-            path: `${res.app.get('ROOT_PATH')}/storage/temp/${image._id}.${ext}`,
-            name: `${image._id}.${ext}`,
+            path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${ext}`,
+            name: `${newImage.id}.${ext}`,
             mimeType: mimeTypeFile
         }
         const dest = fs.createWriteStream(file.path);
@@ -111,24 +123,15 @@ authGoole.get('/crawler/images', async (req: any, res) => {
                 //store image on google drive
                 const googleService = new GoogleDrive();
                 const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
-                const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
-
-                //find category 
-                const category: any = await crawlerKeyWordsRepository
-                    .createQueryBuilder()
-                    .where('keyword like :keyword', { keyword: `%${image.keyword_term}%` })
-                    .getOne();
-
+                
 
                 //fill data
-                const crawlerImages: CrawlerImages = new CrawlerImages();
-                crawlerImages.crawler_keyword = category;
-                crawlerImages.source_url = fileGoogle.webContentLink;
-                crawlerImages.original_filename = file.name;
-                crawlerImages.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
+                
+                newImage.source_url = fileGoogle.webContentLink;
+                newImage.original_filename = file.name;
+                newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
 
-                //save a new image
-                const imageRepository: any = getRepository(CrawlerImages);
+                //updated a new image
                 imageRepository.save(crawlerImages);
             });
 
@@ -137,7 +140,9 @@ authGoole.get('/crawler/images', async (req: any, res) => {
     keyWords[0].crawled_total++;
     crawlerKeyWordsRepository.save(keyWords[0]);
 
-    res.send(keyWords);
+    res.send({
+        'msg':'Your request will be processed'
+    });
 })
 
 

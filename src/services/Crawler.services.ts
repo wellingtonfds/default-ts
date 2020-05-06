@@ -4,7 +4,7 @@ export default class CrawlerService {
 
     public async listImages(keyword:string) {
         let list: [] = [];
-        await axios.get(`${process.env.CRAWLER_API}/image/list?keyword:${keyword}`,
+        await axios.get(`${process.env.CRAWLER_API}/image/list?valid=false&keyword:${keyword}`,
             {
                 headers: {
                     'Authorization': `Token ${process.env.CRAWLER_TOKEN}`,
@@ -15,7 +15,7 @@ export default class CrawlerService {
             list = res.data.list
         }).catch(err => console.log(err));
 
-        return list;
+        //return list;
         return [
             {
                 "valid": false,

@@ -11,16 +11,16 @@ export class CrawlerImages {
     @ManyToOne(type => CrawlerKeyWords, (crawlerKeyWords:any)=>crawlerKeyWords.images)
     crawler_keyword: CrawlerKeyWords;
 
-    @Column()
+    @Column({default:false})
     source_url: string;
 
-    @Column()
+    @Column({default: null})
     original_filename:string;
 
     @Column({default: null})
     checksum:string;
 
-    @Column()
+    @Column({default:false})
     location:string
 
     @Column({default:false})
