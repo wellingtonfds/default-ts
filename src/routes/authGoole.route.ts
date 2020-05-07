@@ -45,13 +45,6 @@ authGoole.route('/images/checked')
             description: 'Folders checked',
             folders: await googleService.imagesChecked(req.app.get('ROOT_PATH'))
         }
-        // folders.folders = folders.folders.map((folder: any) => {
-        //     return {
-        //         'name': folder.name,
-        //         'created': folder.createdTime,
-        //         'modified': folder.modifiedTime
-        //     }
-        // });
         res.send(folders);
 
     })
@@ -90,67 +83,72 @@ authGoole.get('/crawler/images', async (req: any, res) => {
 
     const crawlerService: CrawlerService = new CrawlerService();
     await crawlerService.addKeywords(keyWords[0].keyword)
-    const listImages:any = await crawlerService.listImages(keyWords[0].keyword);
+    const listImages: any = await crawlerService.listImages(keyWords[0].keyword);
 
-    
 
-    for(const keyImage in listImages){
-    
+
+    for (const keyImage in listImages) {
+        let hasError = false;
         //get image
-        const response = await axios({
+        const response : any = await axios({
             method: 'get',
             url: listImages[keyImage].source,
             responseType: 'stream'
-        })
-        
-        
+        }).catch(err => { hasError = true })
 
-        //find category 
-        const category: any = await crawlerKeyWordsRepository
-            .createQueryBuilder()
-            .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
-            .getOne();
+        if (!hasError) {
+            //find category 
 
-        const crawlerImages: CrawlerImages = new CrawlerImages();
-        crawlerImages.crawler_keyword = category;
-        crawlerImages.description = listImages[keyImage].description;
-        crawlerImages.source = listImages[keyImage].source
+            console.log('category', listImages[keyImage].keyword_id.keyword)
+            const category: any = await crawlerKeyWordsRepository
+                .createQueryBuilder()
+                .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
+                .getOne();
 
-        const imageRepository: any = getRepository(CrawlerImages);
-        const newImage = await imageRepository.save(crawlerImages);
+            const crawlerImages: CrawlerImages = new CrawlerImages();
+            crawlerImages.crawler_keyword = category;
+            crawlerImages.description = listImages[keyImage].description;
+            crawlerImages.source = listImages[keyImage].source
 
-        const headerType = response.data.headers['content-type'];
-        const mimeTypeFile =  headerType == undefined ? 'image/png' : headerType;
-        const ext = mime.extension(mimeTypeFile);
-        const file = {
-            path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${ext}`,
-            name: `${newImage.id}.${ext}`,
-            mimeType: mimeTypeFile
+            const imageRepository: any = getRepository(CrawlerImages);
+            const newImage = await imageRepository.save(crawlerImages);
+
+            const headerType = response.data.headers['content-type'];
+            const mimeTypeFile = headerType == undefined ? 'image/png' : headerType;
+            const ext = mime.extension(mimeTypeFile);
+            const file = {
+                path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${ext}`,
+                name: `${newImage.id}.${ext}`,
+                mimeType: mimeTypeFile
+            }
+            const dest = fs.createWriteStream(file.path);
+            const streamy = response.data as Readable;
+
+
+            const promiseStreamy = new Promise((resolve: any, reject: any) => {
+                streamy.pipe(dest)
+                    .on('finish', resolve())
+                    .on('error', reject())
+            });
+
+            await promiseStreamy.then(async () => {
+                //store image on google drive
+                const googleService = new GoogleDrive();
+                const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
+
+                //fill data
+                newImage.source_url = fileGoogle.webContentLink;
+                newImage.original_filename = file.name;
+                newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
+
+                //updated a new image
+                await imageRepository.save(crawlerImages);
+            }).catch(err => console.log(err))
+
+
         }
-        const dest = fs.createWriteStream(file.path);
-        const streamy = response.data as Readable;
 
 
-        const promiseStreamy = new Promise((resolve:any, reject:any) => {
-            streamy.pipe(dest)
-            .on('finish',resolve())
-            .on('error', reject())
-        });
-
-        await promiseStreamy.then(async ()=>{
-             //store image on google drive
-             const googleService = new GoogleDrive();
-             const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
-
-             //fill data
-             newImage.source_url = fileGoogle.webContentLink;
-             newImage.original_filename = file.name;
-             newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
-
-             //updated a new image
-             await imageRepository.save(crawlerImages);
-        }).catch(err => console.log(err))
-        
 
     }
 

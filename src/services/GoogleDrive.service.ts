@@ -7,6 +7,7 @@ import { CrawlerImages } from '../entity/CrawlerImages';
 import { getRepository } from 'typeorm';
 import VisuallyService from './Visually.services';
 import { CrawlerKeyWords } from '../entity/CrawlerKeyWords';
+import { json } from 'body-parser';
 
 
 
@@ -180,56 +181,66 @@ export default class GoogleDrive {
         query.getParents = true;
         const folder: any = await this.searchFolder(query);
         // return config.main.id;
-        if (folder[0].children.length < config.qty) {
-            return folder[0].id;
+        if (folder.length) {
+            if (folder[0].children.length < config.qty) {
+                return folder[0].id;
+            }
         }
 
         return await this.improveFolderUpload(rootPath);
 
     }
     public async imagesChecked(rootPath: any) {
-        const visuallyService: VisuallyService  = new VisuallyService();
+        const visuallyService: VisuallyService = new VisuallyService();
         let query: QueryModel = new QueryModel();
         query.raw = "fullText contains 'ok'";
         const folders: any = await this.searchFolder(query);
-        for(const folder in folders){
-        // folders.forEach(async (folder: any) => {
+
+        //Random e-mail
+        let emails: any = [];
+        await readPromisify(`${rootPath}/storage/emails.list.json`, 'utf8').then(data => {
+            emails = JSON.parse(data)
+        });
+
+        for (const folder in folders) {
+            //query files
             query.raw = `'${folders[folder].id}' in parents`
             query.mimeType = '';
             const files = await this.searchFolder(query);
             files.forEach(async (file: any) => {
                 const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
                 const imageRepository: any = getRepository(CrawlerImages);
-                
-                
+
                 //find category 
-                const {crawlerKeywordId, id_image } : any = await imageRepository
-                .createQueryBuilder()
-                .select('crawlerKeywordId')
-                .addSelect('id as id_image')
-                .where('original_filename = :filename',{filename: `${file.name}`})
-                .getRawOne();
+                const { id, crawlerKeywordId }: any = await imageRepository
+                    .createQueryBuilder()
+                    .select('*')
+                    .where('original_filename = :filename', { filename: `${file.name}` })
+                    .getRawOne();
+                const image = await imageRepository.findOne(id);
+                const category: any = await crawlerKeyWordsRepository.findOne(crawlerKeywordId);
 
-                const image = await imageRepository.find(id_image)
-                const category: any = await crawlerKeyWordsRepository.find(crawlerKeywordId);
+                //random emails
+                const index = Math.floor(Math.random() * (emails.list.length ));
 
-                
-                
-                visuallyService.send({
+                const dataByVisually = {
                     "title": image.description,
-                    "source":image.source,
+                    "source": image.source,
                     "category": category.category,
                     "url": image.source_url,
-                    "email": "accounts+visually@visual.ly",
+                    "email": emails.list[index].email,
                     "api_token": `${process.env.VISUALLY_TOKEN}`
-                })
-                
+                }
+                image.uploaded_at = new Date();
+                const upload_id = visuallyService.send(dataByVisually)
+                image.upload_id = upload_id;
+                image.published_at = new Date();
+
             });
-            const folerName = folders[folder].name.replace('_ok','') + '_uploaded';
-            this.renameFolder(folders[folder].id, folerName )
-            
+            const folerName = folders[folder].name.replace('_ok', '') + '_uploaded';
+            this.renameFolder(folders[folder].id, folerName)
         };
-        visuallyService.completeData();
+        // visuallyService.completeData();
         return folders;
 
     }
@@ -245,12 +256,12 @@ export default class GoogleDrive {
         const streamy = res.data as Readable;
         streamy.pipe(dest);
     }
-    private async deleteFile(file:any){
+    private async deleteFile(file: any) {
         const drive = await this.getValidDrive();
         drive.files.delete({
-            fileId:file.id
+            fileId: file.id
         })
-        .catch(err=>console.log(err))
+            .catch(err => console.log(err))
 
     }
     private async improveFolderUpload(rootPath: any) {
@@ -278,7 +289,6 @@ export default class GoogleDrive {
         let fileMetadata = {
             name: file.name,
             parents: [`${idCurrentFolder}`],
-
         };
 
         const media = {
@@ -328,9 +338,9 @@ export default class GoogleDrive {
         }).then(res => { files = res.data.files })
             .catch(err => { files = err });
         //add children files on father folder
-        if (query.getParents && files.length)  {
+        if (query.getParents && files.length) {
             let children: any = {}
-            
+
             if (files[0].mimeType = 'application/vnd.google-apps.folder') {
                 const idFolder = files[0].id
                 children = await this.searchFolder({ raw: `'${idFolder}' in parents` })
@@ -339,15 +349,13 @@ export default class GoogleDrive {
         }
         return files;
     }
-    private async renameFolder(idFolder:string, name:string) {
+    private async renameFolder(idFolder: string, name: string) {
         const drive = await this.getValidDrive();
         await drive.files.update({
-            fileId:idFolder,
+            fileId: idFolder,
             requestBody: {
                 name,
             }
-        }).then(folder => {
-            console.log(folder)
         }).catch(err => console.log(err))
     }
 

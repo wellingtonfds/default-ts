@@ -35,7 +35,7 @@ export default class CrawlerService {
         }
         ).then(res => {
             list = res.data.list
-        }).catch(err => console.log(err));
+        }).catch(err => console.log('error crawler list images:',err));
 
         return list;
     }

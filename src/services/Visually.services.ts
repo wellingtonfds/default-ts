@@ -4,8 +4,9 @@ import { CrawlerImages } from '../entity/CrawlerImages';
 
 export default class VisuallyService {
 
-    public send(file: any) {
-        axios(
+    public async send(file: any) {
+        let upload_id = 0;
+        await axios(
             {
                 method: 'post',
                 url: `${process.env.VISUALLY_API}/image-upload-api/images/upload/image`,
@@ -15,8 +16,9 @@ export default class VisuallyService {
                 }
             }
         ).then(res => {
-            console.log(res);
+            upload_id = res.data.nid;
         }).catch(err => console.log(err));
+        return upload_id;
     }
 
     public async completeData() {
