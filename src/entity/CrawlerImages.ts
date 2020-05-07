@@ -32,7 +32,7 @@ export class CrawlerImages {
     @Column({default:false})
     valid:boolean;
 
-    @Column({default:false})
+    @Column({default:0})
     uploaded_id:number;
 
     @CreateDateColumn({default:false})
