@@ -235,12 +235,13 @@ export default class GoogleDrive {
                 const upload_id = visuallyService.send(dataByVisually)
                 image.upload_id = upload_id;
                 image.published_at = new Date();
+                imageRepository.save(image);
 
             });
             const folerName = folders[folder].name.replace('_ok', '') + '_uploaded';
             this.renameFolder(folders[folder].id, folerName)
         };
-        // visuallyService.completeData();
+        visuallyService.completeData();
         return folders;
 
     }
