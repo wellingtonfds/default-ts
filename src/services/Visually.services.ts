@@ -47,7 +47,7 @@ export default class VisuallyService {
             }
         ).then(res => {
             res.data.forEach((image:any) => {
-                const imageDatabase = imageRepository.find(image.nid);
+                const imageDatabase = imageRepository.findOne(image.nid);
 
                 if(imageDatabase){
                     imageDatabase.transcribed_at = image.transcribed == '1' ? new Date() : null;
