@@ -90,7 +90,7 @@ authGoole.get('/crawler/images', async (req: any, res) => {
     for (const keyImage in listImages) {
         let hasError = false;
         //get image
-        const response : any = await axios({
+        const response: any = await axios({
             method: 'get',
             url: listImages[keyImage].source,
             responseType: 'stream'
@@ -110,15 +110,20 @@ authGoole.get('/crawler/images', async (req: any, res) => {
             crawlerImages.description = listImages[keyImage].description;
             crawlerImages.source = listImages[keyImage].source
 
+            const filename = crawlerImages.source.substring(crawlerImages.source.lastIndexOf('/') + 1);
+            const newExtension = filename.substring(filename.lastIndexOf('.') + 1)
+            console.log(filename)
+            
+
             const imageRepository: any = getRepository(CrawlerImages);
             const newImage = await imageRepository.save(crawlerImages);
 
             const headerType = response.data.headers['content-type'];
             const mimeTypeFile = headerType == undefined ? 'image/png' : headerType;
-            const ext = mime.extension(mimeTypeFile);
+            // const ext = mime.extension(mimeTypeFile);
             const file = {
-                path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${ext}`,
-                name: `${newImage.id}.${ext}`,
+                path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${newExtension}`,
+                name: `${newImage.id}.${newExtension}`,
                 mimeType: mimeTypeFile
             }
             const dest = fs.createWriteStream(file.path);
@@ -138,7 +143,7 @@ authGoole.get('/crawler/images', async (req: any, res) => {
 
                 //fill data
                 newImage.source_url = fileGoogle.webContentLink;
-                newImage.original_filename = file.name;
+                newImage.original_filename = filename;
                 newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
 
                 //updated a new image

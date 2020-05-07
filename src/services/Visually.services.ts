@@ -16,8 +16,9 @@ export default class VisuallyService {
                 }
             }
         ).then(res => {
+            console.log('res-visually',res)
             upload_id = res.data.nid;
-        }).catch(err => console.log(err));
+        }).catch(err => console.log('visually-service-send',err.message));
         return upload_id;
     }
 
@@ -54,7 +55,7 @@ export default class VisuallyService {
                     imageRepository.save(imageDatabase);
                 }
             });
-        }).catch(err => console.log(err));
+        }).catch(err => console.log('visually-service-completeData:',err.message));
 
     }
 

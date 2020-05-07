@@ -204,44 +204,69 @@ export default class GoogleDrive {
 
         for (const folder in folders) {
             //query files
+            console.log('#############################')
+            console.log('folder name:', folders[folder].name);
             query.raw = `'${folders[folder].id}' in parents`
             query.mimeType = '';
             const files = await this.searchFolder(query);
-            files.forEach(async (file: any) => {
+            console.log('qty files:', files.length);
+            console.log('#############################')
+            console.log('\n')
+            for (const file in files) {
+                // files.forEach(async (file: any) => {
+                console.log('file name:', files[file].name)
                 const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
                 const imageRepository: any = getRepository(CrawlerImages);
 
                 //find category 
-                const { id, crawlerKeywordId }: any = await imageRepository
+                const imageIdWithCategory: any = await imageRepository
                     .createQueryBuilder()
                     .select('*')
-                    .where('original_filename = :filename', { filename: `${file.name}` })
+                    .where('original_filename = :filename', { filename: `${files[file].name}` })
                     .getRawOne();
-                const image = await imageRepository.findOne(id);
-                const category: any = await crawlerKeyWordsRepository.findOne(crawlerKeywordId);
 
-                //random emails
-                const index = Math.floor(Math.random() * (emails.list.length ));
+                if (imageIdWithCategory == undefined) {
+                    console.log('this images not have ref on database');
+                } else {
+                    console.log('database-id', imageIdWithCategory.id)
+                    console.log('category-id', imageIdWithCategory.crawlerKeywordId)
+                    const image = await imageRepository.findOne(imageIdWithCategory.id);
+                    const category: any = await crawlerKeyWordsRepository.findOne(imageIdWithCategory.crawlerKeywordId);
 
-                const dataByVisually = {
-                    "title": image.description,
-                    "source": image.source,
-                    "category": category.category,
-                    "url": image.source_url,
-                    "email": emails.list[index].email,
-                    "api_token": `${process.env.VISUALLY_TOKEN}`
+                    //random emails
+                    const index = Math.floor(Math.random() * (emails.list.length));
+
+                    const dataByVisually = {
+                        "title": image.description,
+                        "source": image.source,
+                        "category": category.category,
+                        "url": image.source_url,
+                        "email": emails.list[index].email,
+                        "api_token": `${process.env.VISUALLY_TOKEN}`
+                    }
+
+                    console.log('visually-data', dataByVisually)
+                    image.uploaded_at = new Date();
+                    try{
+                         const upload_id = await visuallyService.send(dataByVisually)
+                         image.upload_id = upload_id;
+                    }catch(err){
+                        console.log('visually-data-err',err.msg)
+                    }
+                    image.published_at = new Date();
+                    imageRepository.save(image);
                 }
-                image.uploaded_at = new Date();
-                const upload_id = visuallyService.send(dataByVisually)
-                image.upload_id = upload_id;
-                image.published_at = new Date();
-                imageRepository.save(image);
-
-            });
+                console.log('\n')
+            };
             const folerName = folders[folder].name.replace('_ok', '') + '_uploaded';
             this.renameFolder(folders[folder].id, folerName)
         };
-        visuallyService.completeData();
+        try{
+            visuallyService.completeData();
+        }catch(err){
+            console.log('err-complete-data',err.msg);
+        }
+        
         return folders;
 
     }
