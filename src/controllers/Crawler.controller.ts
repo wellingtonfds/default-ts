@@ -24,7 +24,7 @@ export default class CrawlerController {
             .limit(1)
             .orderBy('updated_at', 'ASC')
             .getRawMany();
-
+        
 
         const crawlerService: CrawlerService = new CrawlerService();
         await crawlerService.addKeywords(keyWords[0].keyword)
@@ -44,14 +44,15 @@ export default class CrawlerController {
             if (!hasError) {
                 //find category 
 
-                console.log('category', listImages[keyImage].keyword_id.keyword)
-                const category: any = await crawlerKeyWordsRepository
-                    .createQueryBuilder()
-                    .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
-                    .getOne();
+                console.log('category', keyWords[0].keyword)
+                // console.log('category', listImages[keyImage].keyword_id.keyword)
+                // const category: any = await crawlerKeyWordsRepository
+                //     .createQueryBuilder()
+                //     .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
+                //     .getOne();
 
                 const crawlerImages: CrawlerImages = new CrawlerImages();
-                crawlerImages.crawler_keyword = category;
+                crawlerImages.crawler_keyword = keyWords[0];
                 crawlerImages.description = listImages[keyImage].description;
                 crawlerImages.source = listImages[keyImage].source
 
