@@ -30,7 +30,7 @@ export default class CrawlerService {
 
     public async listImages(keyword: string, limit:number = 20) {
         let list: [] = [];
-        await axios.get(`${process.env.CRAWLER_API}/image/list?valid=false&limit=${limit}`, {
+        await axios.get(`${process.env.CRAWLER_API}/image/list?valid=false&keyword=${keyword}&limit=${limit}`, {
             headers:this.headers
         }
         ).then(res => {

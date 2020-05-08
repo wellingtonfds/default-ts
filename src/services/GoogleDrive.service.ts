@@ -248,7 +248,7 @@ export default class GoogleDrive {
                         "title": image.description,
                         "source": image.source,
                         "category": category.category,
-                        "url": image.source_url,
+                        "url": image.source_url.replace("&export=download", ""),
                         "email": emails.list[index].email,
                         "api_token": `${process.env.VISUALLY_TOKEN}`
                     }
@@ -256,8 +256,8 @@ export default class GoogleDrive {
                     console.log('visually-data', dataByVisually)
                     image.uploaded_at = new Date();
                     try {
-                        const upload_id = await visuallyService.send(dataByVisually)
-                        image.upload_id = upload_id;
+                        const uploaded_id = await visuallyService.send(dataByVisually)
+                        image.uploaded_id = uploaded_id;
                     } catch (err) {
                         console.log('visually-data-err', err.msg)
                     }
