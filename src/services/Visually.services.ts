@@ -5,6 +5,9 @@ import { CrawlerImages } from '../entity/CrawlerImages';
 export default class VisuallyService {
 
     public async send(file: any) {
+        console.log("#########################")
+        console.log('SEND_VISUALLY')
+        console.log("#########################\n")
         let upload_id = 0;
         await axios(
             {
@@ -16,9 +19,13 @@ export default class VisuallyService {
                 }
             }
         ).then(res => {
-            console.log('res-visually',res)
+            console.log("############RETURN SEND-DATA ##################\n")
+            console.log('res-visually', res.data)
+            console.log("############UPLOAD_ID ##################")
+            console.log(res.data.nid)
+            console.log("#######################################\n")
             upload_id = res.data.nid;
-        }).catch(err => console.log('visually-service-send',err.message));
+        }).catch(err => console.log('visually-service-send-error', err.response.message));
         return upload_id;
     }
 
@@ -27,12 +34,17 @@ export default class VisuallyService {
         const imageRepository: any = getRepository(CrawlerImages);
         const images = await imageRepository
             .createQueryBuilder()
-            .select('id')
-            .where('uploaded_at is null or transcribed_at is null or published_at is null')
+            .select('uploaded_id')
+            .where('uploaded_id != 0 and transcribed_at is null')
             .getRawMany();
+
         const imagesTrait = await images.map((image: any) => {
-            return image.id
+            return image.uploaded_id
         })
+        console.log("#########################COMPLETE DATA####################\n")
+        console.log("#########################UPLOAD_IDS####################")
+        console.log(imagesTrait)
+        console.log("######################################################\n")
         await axios(
             {
                 method: 'post',
@@ -47,15 +59,43 @@ export default class VisuallyService {
                 }
             }
         ).then(res => {
-            res.data.forEach((image:any) => {
-                const imageDatabase = imageRepository.findOne(image.nid);
+            console.log("#########################")
+            console.log('COMPLETE_DATA_VISUALLY')
+            console.log("#########################")
+            console.log("RESPONSE")
+            console.log(res);
+            console.log("#########################")
+            console.log("RESPONSE-data")
+            console.log(res.data)
 
-                if(imageDatabase){
-                    imageDatabase.transcribed_at = image.transcribed == '1' ? new Date() : null;
+
+
+            console.log("#########################")
+            console.log('FOREACH-RES.DATA')
+
+            res.data.forEach(async (image: any) => {
+                console.log("ID-VISUALLY:", image.nid)
+                const imageDatabase = await imageRepository.
+                    createQueryBuilder()
+                    .where('uploaded_id = :id', { id: image.nid })
+                    .getOne();
+
+                if (imageDatabase) {
+                    console.log("################MODEL#############");
+                    imageDatabase.transcribed_at = image.transcribed == 1 ? new Date() : null;
+                    console.log('image.databaseId.', imageDatabase.id)
+                    console.log('image.uploaded_id.', imageDatabase.uploaded_id)
+                    console.log('image.transcribed', image.transcribed == 1 ? new Date() : null)
+                    console.log("################FIMMODEL##########\n");
                     imageRepository.save(imageDatabase);
+                } else {
+                    console.log("################UPLOAD_ID_NOT_FOUND#############");
+                    console.log("upload_id:", image.nid);
+                    console.log("################################################\n");
                 }
             });
-        }).catch(err => console.log('visually-service-completeData:',err.message));
+        }).catch(err => console.log('visually-service-completeData:', err.message));
+
 
     }
 

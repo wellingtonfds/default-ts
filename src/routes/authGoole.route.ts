@@ -9,7 +9,10 @@ import axios from 'axios'
 import * as fs from 'fs';
 import { Readable } from 'typeorm/platform/PlatformTools';
 import mime from 'mime-types';
+import path from 'path';
 import VisuallyService from '../services/Visually.services';
+import CrawlerController from '../controllers/Crawler.controller';
+import VisuallyController from '../controllers/Visually.controller';
 const authGoole: IRouter = Router();
 
 authGoole.route('/login')
@@ -40,12 +43,10 @@ authGoole.route('/callback')
 
 authGoole.route('/images/checked')
     .get(async (req, res) => {
-        let googleService = new GoogleDrive();
-        const folders: any = {
-            description: 'Folders checked',
-            folders: await googleService.imagesChecked(req.app.get('ROOT_PATH'))
-        }
-        res.send(folders);
+        console.log("#############IMAGES CHECKED######################\n\n")
+        const controller = new VisuallyController(req.app.get('ROOT_PATH'))
+        controller.index();
+        res.send('Your request will be processed');
 
     })
 authGoole
@@ -71,95 +72,10 @@ authGoole
 
 
 authGoole.get('/crawler/images', async (req: any, res) => {
-
-    const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
-    const keyWords = await crawlerKeyWordsRepository.createQueryBuilder()
-        .select("*")
-        .where('ended_at is null')
-        .limit(1)
-        .orderBy('updated_at', 'ASC')
-        .getRawMany();
-
-
-    const crawlerService: CrawlerService = new CrawlerService();
-    await crawlerService.addKeywords(keyWords[0].keyword)
-    const listImages: any = await crawlerService.listImages(keyWords[0].keyword);
-
-
-
-    for (const keyImage in listImages) {
-        let hasError = false;
-        //get image
-        const response: any = await axios({
-            method: 'get',
-            url: listImages[keyImage].source,
-            responseType: 'stream'
-        }).catch(err => { hasError = true })
-
-        if (!hasError) {
-            //find category 
-
-            console.log('category', listImages[keyImage].keyword_id.keyword)
-            const category: any = await crawlerKeyWordsRepository
-                .createQueryBuilder()
-                .where('keyword like :keyword', { keyword: `%${listImages[keyImage].keyword_id.keyword}%` })
-                .getOne();
-
-            const crawlerImages: CrawlerImages = new CrawlerImages();
-            crawlerImages.crawler_keyword = category;
-            crawlerImages.description = listImages[keyImage].description;
-            crawlerImages.source = listImages[keyImage].source
-
-            const filename = crawlerImages.source.substring(crawlerImages.source.lastIndexOf('/') + 1);
-            const newExtension = filename.substring(filename.lastIndexOf('.') + 1)
-            console.log(filename)
-            
-
-            const imageRepository: any = getRepository(CrawlerImages);
-            const newImage = await imageRepository.save(crawlerImages);
-
-            const headerType = response.data.headers['content-type'];
-            const mimeTypeFile = headerType == undefined ? 'image/png' : headerType;
-            // const ext = mime.extension(mimeTypeFile);
-            const file = {
-                path: `${res.app.get('ROOT_PATH')}/storage/temp/${newImage.id}.${newExtension}`,
-                name: `${newImage.id}.${newExtension}`,
-                mimeType: mimeTypeFile
-            }
-            const dest = fs.createWriteStream(file.path);
-            const streamy = response.data as Readable;
-
-
-            const promiseStreamy = new Promise((resolve: any, reject: any) => {
-                streamy.pipe(dest)
-                    .on('finish', resolve())
-                    .on('error', reject())
-            });
-
-            await promiseStreamy.then(async () => {
-                //store image on google drive
-                const googleService = new GoogleDrive();
-                const fileGoogle: any = await googleService.uploadFile(file, req.app.get('ROOT_PATH'));
-
-                //fill data
-                newImage.source_url = fileGoogle.webContentLink;
-                newImage.original_filename = filename;
-                newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
-
-                //updated a new image
-                await imageRepository.save(crawlerImages);
-            }).catch(err => console.log(err))
-
-
-        }
-
-
-
-    }
-
-    keyWords[0].crawled_total++;
-    crawlerKeyWordsRepository.save(keyWords[0]);
-    res.send(listImages)
+    console.log("#############CRAWLER IMAGES######################\n\n")
+    const controller = new CrawlerController(req.app.get('ROOT_PATH'))
+    controller.index();
+    res.send('Your request will be processed')
 })
 
 

@@ -4,7 +4,7 @@ import * as util from 'util';
 import QueryModel from '../models/Query.model';
 import { Readable } from 'stream';
 import { CrawlerImages } from '../entity/CrawlerImages';
-import { getRepository } from 'typeorm';
+import { getRepository, Any } from 'typeorm';
 import VisuallyService from './Visually.services';
 import { CrawlerKeyWords } from '../entity/CrawlerKeyWords';
 import { json } from 'body-parser';
@@ -214,16 +214,24 @@ export default class GoogleDrive {
             console.log('\n')
             for (const file in files) {
                 // files.forEach(async (file: any) => {
+                const fileName = files[file].name;
+                const fileId = fileName.substr(0, fileName.lastIndexOf('.'));
+                console.log('Id database:', fileId)
                 console.log('file name:', files[file].name)
                 const crawlerKeyWordsRepository: any = getRepository(CrawlerKeyWords);
                 const imageRepository: any = getRepository(CrawlerImages);
 
                 //find category 
-                const imageIdWithCategory: any = await imageRepository
-                    .createQueryBuilder()
-                    .select('*')
-                    .where('original_filename = :filename', { filename: `${files[file].name}` })
-                    .getRawOne();
+                let imageIdWithCategory : any = undefined; 
+                try {
+                    imageIdWithCategory = await imageRepository
+                        .createQueryBuilder()
+                        .select('*')
+                        .where('id = :idFile', { idFile: `${fileId}` })
+                        .getRawOne();
+                } catch(err){
+                    console.log('err-query-id-file:',fileId)
+                }
 
                 if (imageIdWithCategory == undefined) {
                     console.log('this images not have ref on database');
@@ -247,13 +255,16 @@ export default class GoogleDrive {
 
                     console.log('visually-data', dataByVisually)
                     image.uploaded_at = new Date();
-                    try{
-                         const upload_id = await visuallyService.send(dataByVisually)
-                         image.upload_id = upload_id;
-                    }catch(err){
-                        console.log('visually-data-err',err.msg)
+                    try {
+                        const upload_id = await visuallyService.send(dataByVisually)
+                        image.upload_id = upload_id;
+                    } catch (err) {
+                        console.log('visually-data-err', err.msg)
                     }
                     image.published_at = new Date();
+                    console.log("############UPDATE MODEL IMAGE##################")
+                    console.log(image);
+                    console.log("################################################\n")
                     imageRepository.save(image);
                 }
                 console.log('\n')
@@ -261,12 +272,12 @@ export default class GoogleDrive {
             const folerName = folders[folder].name.replace('_ok', '') + '_uploaded';
             this.renameFolder(folders[folder].id, folerName)
         };
-        try{
+        try {
             visuallyService.completeData();
-        }catch(err){
-            console.log('err-complete-data',err.msg);
+        } catch (err) {
+            console.log('err-complete-data', err.msg);
         }
-        
+
         return folders;
 
     }
@@ -332,7 +343,7 @@ export default class GoogleDrive {
             unlinkPromisify(file.path)
             fileGoogle = res.data
         })
-            .catch(err => console.log(err))
+            .catch(err => console.log('google-upload-error:', err.response.status))
         return fileGoogle
     }
 
