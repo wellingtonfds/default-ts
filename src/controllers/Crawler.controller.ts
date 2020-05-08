@@ -56,10 +56,13 @@ export default class CrawlerController {
                 crawlerImages.source = listImages[keyImage].source
 
                 const filename: string = crawlerImages.source.substring(crawlerImages.source.lastIndexOf('/') + 1);
+                const onlyFileName : string = filename.substr(0, filename.lastIndexOf('.'));
                 // const newExtension = path.extname(filename);
                 const ext = mime.extension(mime.contentType(filename) || 'image/png');
-                console.log('ori-filename', `${filename}`);
-                console.log('test-ext', ext)
+                console.log('only-filename', `${onlyFileName}`);
+                console.log('original-filename', `${filename}`);
+                console.log('original-filename-clear', `${onlyFileName}.${ext}`)
+                console.log('extension', ext)
 
 
 
@@ -70,7 +73,7 @@ export default class CrawlerController {
                 const headerType = response.data.headers['content-type'];
                 const mimeTypeFile = headerType == undefined ? 'image/png' : headerType;
                 // const ext = mime.extension(mimeTypeFile);
-                console.log('goo-filename', `${newImage.id}.${ext}\n`);
+                console.log('google-filename', `${newImage.id}.${ext}\n`);
                 const file = {
                     path: `${this.path}/storage/temp/${newImage.id}.${ext}`,
                     name: `${newImage.id}.${ext}`,
@@ -97,7 +100,7 @@ export default class CrawlerController {
                     //updated a new image
                     if (fileGoogle.webContentLink != undefined) {
                         newImage.source_url = fileGoogle.webContentLink;
-                        newImage.original_filename = filename;
+                        newImage.original_filename = `${onlyFileName}.${ext}`;
                         newImage.location = fileGoogle.parents.length ? fileGoogle.parents[0] : "";
                         imageRepository.save(newImage)
                     } else {

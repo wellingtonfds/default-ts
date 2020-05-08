@@ -43,6 +43,7 @@ authGoole.route('/callback')
 
 authGoole.route('/images/checked')
     .get(async (req, res) => {
+        console.log("#############IMAGES CHECKED######################\n\n")
         const controller = new VisuallyController(req.app.get('ROOT_PATH'))
         controller.index();
         res.send('Your request will be processed');
@@ -71,6 +72,7 @@ authGoole
 
 
 authGoole.get('/crawler/images', async (req: any, res) => {
+    console.log("#############CRAWLER IMAGES######################\n\n")
     const controller = new CrawlerController(req.app.get('ROOT_PATH'))
     controller.index();
     res.send('Your request will be processed')
