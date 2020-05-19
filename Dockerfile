@@ -9,5 +9,7 @@ RUN npm i
 # Copy source
 COPY . .
 
+
+CMD ["npm", "run", "dev"]
 # Expose port 3000
-EXPOSE 3000
+EXPOSE 3100
