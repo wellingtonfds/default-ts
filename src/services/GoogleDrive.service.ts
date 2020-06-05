@@ -59,7 +59,7 @@ export default class GoogleDrive {
         //Main folder init
         if (!config.main.id) {
             //create a folder crawler
-            if (!files.legth) {
+            if (!files.length) {
                 config.main.id = await this.createFolder('crawler')
             } else {
                 config.main.id = files[0].id
@@ -181,8 +181,12 @@ export default class GoogleDrive {
         query.getParents = true;
         const folder: any = await this.searchFolder(query);
         // return config.main.id;
+        console.log('max-files-per-folder-google-drive',config.qty)
+        
         if (folder.length) {
             if (folder[0].children.length < config.qty) {
+                console.log('folder-name-google-drive:',folder[0].name)
+                console.log('qty-files-folder-google-drive:',folder[0].children.length)
                 return folder[0].id;
             }
         }
@@ -254,24 +258,29 @@ export default class GoogleDrive {
                     }
 
                     console.log('visually-data', dataByVisually)
-                    image.uploaded_at = new Date();
-                    try {
-                        const uploaded_id = await visuallyService.send(dataByVisually)
-                        image.uploaded_id = uploaded_id;
-                    } catch (err) {
-                        console.log('visually-data-err', err.msg)
+                    console.log('uploaded_at:', image.uploaded_at)
+                    if (image.uploaded_at === null) {
+                        image.uploaded_at = new Date();
+                        try {
+                            const uploaded_id = await visuallyService.send(dataByVisually)
+                            image.uploaded_id = uploaded_id;
+                        } catch (err) {
+                            console.log('visually-data-err', err.msg)
+                        }
+                        image.published_at = new Date();
+                        console.log("############UPDATE MODEL IMAGE##################")
+                        console.log(image);
+                        console.log("################################################\n")
+                        imageRepository.save(image);
+                    }else{
+                        console.log(`File already uploaded - ${image.description}`)
                     }
-                    image.published_at = new Date();
-                    console.log("############UPDATE MODEL IMAGE##################")
-                    console.log(image);
-                    console.log("################################################\n")
-                    imageRepository.save(image);
                 }
                 console.log('\n')
-            };
+            }
             const folerName = folders[folder].name.replace('_ok', '') + '_uploaded';
             this.renameFolder(folders[folder].id, folerName)
-        };
+        }
         try {
             visuallyService.completeData();
         } catch (err) {
@@ -317,6 +326,8 @@ export default class GoogleDrive {
         config.folder_number++;
         //write config
         await writePromisify(`${rootPath}/storage/${CONFIG_FILES}`, JSON.stringify(config))
+        console.log('folder-name-google-drive:',config.current_position.name)
+        console.log('qty-files-folder-google-drive:',0)
         return config.current_position.id;
     }
     public async uploadFile(file: any, rootPath: any) {
